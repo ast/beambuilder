@@ -1,11 +1,14 @@
 mod camera;
+mod cli;
 mod edit;
 mod sim;
 mod ui;
 mod world;
 
+use anyhow::Result;
 use bevy::gizmos::config::{DefaultGizmoConfigGroup, GizmoConfigStore};
 use bevy::prelude::*;
+use clap::Parser;
 
 #[derive(States, Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum GameState {
@@ -16,7 +19,10 @@ pub enum GameState {
     Result,
 }
 
-fn main() {
+fn main() -> Result<()> {
+    let cli = cli::Cli::parse();
+    let (level_path, _) = cli.resolve()?;
+
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -27,6 +33,7 @@ fn main() {
             ..default()
         }))
         .insert_resource(ClearColor(Color::srgb(0.07, 0.08, 0.10)))
+        .insert_resource(level_path)
         .init_state::<GameState>()
         .add_plugins((
             camera::CameraPlugin,
@@ -37,6 +44,7 @@ fn main() {
         ))
         .add_systems(Startup, configure_gizmos)
         .run();
+    Ok(())
 }
 
 fn configure_gizmos(mut store: ResMut<GizmoConfigStore>) {

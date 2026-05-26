@@ -1,3 +1,4 @@
+use crate::cli::LevelPath;
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use serde::Deserialize;
@@ -52,7 +53,11 @@ impl Plugin for LevelPlugin {
     }
 }
 
-fn load_initial_level(mut commands: Commands, assets: Res<AssetServer>) {
-    let handle = assets.load::<Level>("levels/01_first_gap.level.ron");
+fn load_initial_level(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    level_path: Res<LevelPath>,
+) {
+    let handle = assets.load::<Level>(level_path.0.clone());
     commands.insert_resource(CurrentLevel(handle));
 }

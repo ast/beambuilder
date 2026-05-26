@@ -1,0 +1,19 @@
+// Step Bridge: left bank sits 96 units (3 grid cells) higher than the right.
+// The deck has to drop as it crosses — single segments must stay within the
+// 30° MAX_DECK_SLOPE for the train to actually drive across.
+(
+    anchors: [
+        (-256.0,   96.0),
+        ( 256.0,    0.0),
+    ],
+    terrain: [
+        (-640.0,   96.0),
+        (-256.0,   96.0),
+        (-128.0, -224.0),
+        ( 128.0, -224.0),
+        ( 256.0,    0.0),
+        ( 640.0,    0.0),
+    ],
+    vehicle_spawn: (-512.0,  128.0),
+    goal:          ( 512.0,    0.0),
+)

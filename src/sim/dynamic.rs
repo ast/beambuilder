@@ -12,7 +12,7 @@ use bevy::prelude::*;
 
 const SUBSTEPS: usize = 8;
 const DAMPING: f32 = 0.9995;
-const BREAK_STRAIN: f32 = 0.05;
+const BREAK_STRAIN: f32 = 0.015;
 const FALL_THRESHOLD: f32 = -500.0;
 
 /// Number of train cars (engine + wagons).
@@ -23,9 +23,9 @@ pub const CAR_RADIUS: f32 = 20.0;
 /// Center-to-center spacing held by couplers. Must be > 2 × body half-width
 /// to keep adjacent car bodies from visually overlapping.
 pub const CAR_SPACING: f32 = 52.0;
-const CAR_MASS: f32 = 1.0;
-const DRIVE_FORCE_PER_CAR: f32 = 200.0;
-const INITIAL_VX: f32 = 60.0;
+const CAR_MASS: f32 = 2.5;
+const DRIVE_FORCE_PER_CAR: f32 = 300.0;
+const INITIAL_VX: f32 = 40.0;
 /// Number of position-based constraint passes per substep that keep coupled
 /// cars at their target spacing.
 const COUPLING_ITERATIONS: usize = 4;
@@ -330,13 +330,13 @@ fn substep(state: &mut DynamicState, dt: f32) {
                 continue;
             }
             if let Some(push) = resolve_circle_vs_segment(car.pos, CAR_RADIUS, a.pos, b.pos) {
-                car.pos += push;
+                apply_collision_push(car, push);
                 car.grounded = true;
             }
         }
         // Ground (terrain polyline; pushes upward / outward).
         if let Some(push) = resolve_circle_vs_terrain(car.pos, CAR_RADIUS, &state.terrain) {
-            car.pos += push;
+            apply_collision_push(car, push);
             car.grounded = true;
         }
     }
@@ -366,6 +366,25 @@ fn substep(state: &mut DynamicState, dt: f32) {
     } else if lowest_y < FALL_THRESHOLD {
         state.result = TestResult::Lost;
     }
+}
+
+/// Apply a positional correction to a car *and* zero the Verlet velocity
+/// component along the push direction, so the car sticks to the surface
+/// instead of bouncing off. Tangential motion is preserved (so it can still
+/// slide / roll), and gravity will re-acquire any downward motion next substep.
+fn apply_collision_push(car: &mut Car, push: Vec2) {
+    car.pos += push;
+    let push_len = push.length();
+    if push_len < 1e-6 {
+        return;
+    }
+    let n = push / push_len;
+    // After the push, v_after = v_before + push, which generally has a
+    // positive component along n (a bounce kick equal to the penetration).
+    // Slide prev_pos along +n by exactly that component to zero it out.
+    let v_after = car.pos - car.prev_pos;
+    let normal_component = v_after.dot(n);
+    car.prev_pos += n * normal_component;
 }
 
 /// Push a car out of any terrain segment it has descended below.

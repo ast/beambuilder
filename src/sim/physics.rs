@@ -12,7 +12,10 @@ pub const DENSITY: f32 = 0.005;
 
 /// Stress at which a beam is "fully red" (yield). Used only for visualization in M4;
 /// dynamic breakage in M5 may use a separate ultimate-strength constant.
-pub const YIELD_STRESS: f32 = 100.0;
+pub const YIELD_STRESS: f32 = 3000.0;
 
 /// Gravitational acceleration applied in the −y direction.
-pub const GRAVITY: f32 = 9.81;
+///
+/// Scale convention: GRID_SIZE = 32 px ≈ 1 m, so 1 px ≈ 3 cm.
+/// Real gravity 9.81 m/s² → 9.81 × 32 ≈ 314 px/s². Rounded to 300.
+pub const GRAVITY: f32 = 300.0;

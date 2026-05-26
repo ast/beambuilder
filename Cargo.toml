@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1"
 bevy = "0.18"
 bevy_common_assets = { version = "0.16", features = ["ron"] }
+clap = { version = "4", features = ["derive"] }
 nalgebra = "0.35"
 serde = { version = "1", features = ["derive"] }
+thiserror = "2"
 
 # Bevy is slow in debug; this keeps iteration usable.
 [profile.dev]

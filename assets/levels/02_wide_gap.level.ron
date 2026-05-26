@@ -1,0 +1,18 @@
+// Wide Gap: a much wider chasm. Spanning it takes several deck segments and
+// at least one full Pratt or Warren truss bay.
+(
+    anchors: [
+        (-384.0,    0.0),
+        ( 384.0,    0.0),
+    ],
+    terrain: [
+        (-768.0,    0.0),
+        (-384.0,    0.0),
+        (-256.0, -288.0),
+        ( 256.0, -288.0),
+        ( 384.0,    0.0),
+        ( 768.0,    0.0),
+    ],
+    vehicle_spawn: (-640.0,  32.0),
+    goal:          ( 640.0,   0.0),
+)
