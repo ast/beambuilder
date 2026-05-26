@@ -1,0 +1,21 @@
+// First Gap: a single chasm bracketed by two cliff-top anchors.
+// Coordinates are world units (~pixels at zoom 1.0). All multiples of GRID_SIZE (32).
+//
+// Inner points are `[f32; 2]` which serde encodes as a fixed-size tuple, so
+// RON wants `(x, y)` for each point. The outer collections are Vecs, hence `[...]`.
+(
+    anchors: [
+        (-256.0,    0.0),
+        ( 256.0,    0.0),
+    ],
+    terrain: [
+        (-640.0,    0.0),
+        (-256.0,    0.0),
+        (-128.0, -224.0),
+        ( 128.0, -224.0),
+        ( 256.0,    0.0),
+        ( 640.0,    0.0),
+    ],
+    vehicle_spawn: (-512.0,  32.0),
+    goal:          ( 512.0,   0.0),
+)

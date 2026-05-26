@@ -1,0 +1,17 @@
+[package]
+name = "beambuilder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = "0.18"
+bevy_common_assets = { version = "0.16", features = ["ron"] }
+nalgebra = "0.35"
+serde = { version = "1", features = ["derive"] }
+
+# Bevy is slow in debug; this keeps iteration usable.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
