@@ -1,0 +1,7 @@
+# Send `cargo clippy` to its own target dir so it cannot poison the
+# incremental cache used by `cargo build` / `cargo run`.
+# Without this, alternating between clippy and build occasionally leaves
+# stale rcgu codegen units that fail at link time with undefined-symbol
+# errors deep inside bevy_ecs.
+[alias]
+clippy = ["clippy", "--target-dir", "target/clippy"]

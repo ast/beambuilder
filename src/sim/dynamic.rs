@@ -1,7 +1,7 @@
 //! Test-mode physics: a mass-spring Verlet simulation built from a snapshot
 //! of the truss graph. Beams act as stiff springs that break past a strain
-//! threshold; anchors stay clamped. A point-mass vehicle interacts with the
-//! unbroken beams and decides win/lose.
+//! threshold; anchors stay clamped. A small train of coupled point-mass cars
+//! interacts with the unbroken beams and decides win/lose.
 
 use crate::GameState;
 use crate::sim::graph::{BeamId, NodeId, NodeKind, TrussGraph};
@@ -15,10 +15,20 @@ const DAMPING: f32 = 0.9995;
 const BREAK_STRAIN: f32 = 0.05;
 const FALL_THRESHOLD: f32 = -500.0;
 
-const VEHICLE_RADIUS: f32 = 10.0;
-const VEHICLE_MASS: f32 = 2.0;
-const VEHICLE_DRIVE_FORCE: f32 = 400.0;
-const VEHICLE_INITIAL_VX: f32 = 60.0;
+/// Number of train cars (engine + wagons).
+pub const CAR_COUNT: usize = 3;
+/// Collision radius around each car's center — also the height above the
+/// driving surface at which the car's center rides.
+pub const CAR_RADIUS: f32 = 20.0;
+/// Center-to-center spacing held by couplers. Must be > 2 × body half-width
+/// to keep adjacent car bodies from visually overlapping.
+pub const CAR_SPACING: f32 = 52.0;
+const CAR_MASS: f32 = 1.0;
+const DRIVE_FORCE_PER_CAR: f32 = 200.0;
+const INITIAL_VX: f32 = 60.0;
+/// Number of position-based constraint passes per substep that keep coupled
+/// cars at their target spacing.
+const COUPLING_ITERATIONS: usize = 4;
 
 /// Beams steeper than this (sine of slope angle) don't collide with the vehicle.
 /// Models the original Bridge Builder convention: think of the bridge as a 3D side
@@ -35,7 +45,9 @@ const MIN_FREE_MASS: f32 = 0.001;
 pub struct DynamicState {
     pub nodes: HashMap<NodeId, DynNode>,
     pub beams: HashMap<BeamId, DynBeam>,
-    pub vehicle: Option<Vehicle>,
+    pub train: Option<Train>,
+    /// Cached terrain polyline (left-to-right) for ground collision.
+    pub terrain: Vec<Vec2>,
     pub goal_x: f32,
     pub result: TestResult,
 }
@@ -64,12 +76,17 @@ pub struct DynBeam {
     pub broken: bool,
 }
 
+/// A small train of coupled point-mass cars. Index 0 is the engine (front),
+/// remaining cars trail behind to the left at fixed spacing.
+#[derive(Debug, Clone, Default)]
+pub struct Train {
+    pub cars: Vec<Car>,
+}
+
 #[derive(Debug, Clone, Copy)]
-pub struct Vehicle {
+pub struct Car {
     pub pos: Vec2,
     pub prev_pos: Vec2,
-    pub radius: f32,
-    pub mass: f32,
     pub grounded: bool,
 }
 
@@ -158,30 +175,34 @@ fn enter_test(
         }
     }
 
-    let (vehicle, goal_x) = current
+    let (train, terrain, goal_x) = current
         .as_ref()
         .and_then(|c| levels.get(&c.0))
         .map(|lvl| {
-            let pos = lvl.vehicle_spawn_vec2();
+            let head = lvl.vehicle_spawn_vec2();
             let goal = lvl.goal_vec2();
-            // Bake an initial rightward velocity into prev_pos so Verlet picks it up.
-            let prev_pos = pos - Vec2::new(VEHICLE_INITIAL_VX / 60.0, 0.0);
-            (
-                Some(Vehicle {
-                    pos,
-                    prev_pos,
-                    radius: VEHICLE_RADIUS,
-                    mass: VEHICLE_MASS,
-                    grounded: false,
-                }),
-                goal.x,
-            )
+            // Index 0 = engine at vehicle_spawn; remaining cars trail to the left.
+            // Bake initial rightward velocity into each prev_pos.
+            let v_offset = Vec2::new(INITIAL_VX / 60.0, 0.0);
+            let cars: Vec<Car> = (0..CAR_COUNT)
+                .map(|i| {
+                    let pos = head - Vec2::new(CAR_SPACING * i as f32, 0.0);
+                    Car {
+                        pos,
+                        prev_pos: pos - v_offset,
+                        grounded: false,
+                    }
+                })
+                .collect();
+            let terrain: Vec<Vec2> = lvl.terrain_vec2().collect();
+            (Some(Train { cars }), terrain, goal.x)
         })
-        .unwrap_or((None, f32::INFINITY));
+        .unwrap_or((None, Vec::new(), f32::INFINITY));
 
     dyn_state.nodes = nodes;
     dyn_state.beams = beams;
-    dyn_state.vehicle = vehicle;
+    dyn_state.train = train;
+    dyn_state.terrain = terrain;
     dyn_state.goal_x = goal_x;
     dyn_state.result = TestResult::Running;
 }
@@ -189,7 +210,8 @@ fn enter_test(
 fn exit_test(mut dyn_state: ResMut<DynamicState>) {
     dyn_state.nodes.clear();
     dyn_state.beams.clear();
-    dyn_state.vehicle = None;
+    dyn_state.train = None;
+    dyn_state.terrain.clear();
     dyn_state.goal_x = 0.0;
     dyn_state.result = TestResult::Running;
 }
@@ -273,20 +295,28 @@ fn substep(state: &mut DynamicState, dt: f32) {
         node.pos = new_pos;
     }
 
-    // ---- Vehicle ------------------------------------------------------------
-    if let Some(vehicle) = state.vehicle.as_mut() {
-        let mut force = Vec2::new(0.0, -GRAVITY * vehicle.mass);
-        if vehicle.grounded {
-            force.x += VEHICLE_DRIVE_FORCE;
-        }
-        let acc = force / vehicle.mass;
-        let velocity = (vehicle.pos - vehicle.prev_pos) * DAMPING;
-        let new_pos = vehicle.pos + velocity + acc * dt2;
-        vehicle.prev_pos = vehicle.pos;
-        vehicle.pos = new_pos;
+    // ---- Train --------------------------------------------------------------
+    let Some(train) = state.train.as_mut() else {
+        return;
+    };
 
-        // Collide against every unbroken beam that's shallow enough to be a deck.
-        vehicle.grounded = false;
+    // Verlet step each car with gravity + drive force when grounded.
+    for car in &mut train.cars {
+        let mut force = Vec2::new(0.0, -GRAVITY * CAR_MASS);
+        if car.grounded {
+            force.x += DRIVE_FORCE_PER_CAR;
+        }
+        let acc = force / CAR_MASS;
+        let velocity = (car.pos - car.prev_pos) * DAMPING;
+        let new_pos = car.pos + velocity + acc * dt2;
+        car.prev_pos = car.pos;
+        car.pos = new_pos;
+    }
+
+    // Collide each car against deck-eligible beams + terrain.
+    for car in &mut train.cars {
+        car.grounded = false;
+        // Deck (beams shallow enough to count as a driving surface).
         for beam in state.beams.values() {
             if beam.broken {
                 continue;
@@ -299,20 +329,80 @@ fn substep(state: &mut DynamicState, dt: f32) {
             if len < 1e-6 || (delta.y / len).abs() > MAX_DECK_SLOPE {
                 continue;
             }
-            if let Some(push) = resolve_circle_vs_segment(vehicle.pos, vehicle.radius, a.pos, b.pos)
-            {
-                vehicle.pos += push;
-                vehicle.grounded = true;
+            if let Some(push) = resolve_circle_vs_segment(car.pos, CAR_RADIUS, a.pos, b.pos) {
+                car.pos += push;
+                car.grounded = true;
             }
         }
-
-        // Win / lose checks
-        if vehicle.pos.x >= state.goal_x {
-            state.result = TestResult::Won;
-        } else if vehicle.pos.y < FALL_THRESHOLD {
-            state.result = TestResult::Lost;
+        // Ground (terrain polyline; pushes upward / outward).
+        if let Some(push) = resolve_circle_vs_terrain(car.pos, CAR_RADIUS, &state.terrain) {
+            car.pos += push;
+            car.grounded = true;
         }
     }
+
+    // Couple consecutive cars with a stiff distance constraint (PBD style).
+    for _ in 0..COUPLING_ITERATIONS {
+        for i in 0..train.cars.len().saturating_sub(1) {
+            let (left, right) = train.cars.split_at_mut(i + 1);
+            let a = &mut left[i];
+            let b = &mut right[0];
+            let delta = b.pos - a.pos;
+            let len = delta.length();
+            if len < 1e-6 {
+                continue;
+            }
+            let correction = (len - CAR_SPACING) * 0.5 * (delta / len);
+            a.pos += correction;
+            b.pos -= correction;
+        }
+    }
+
+    // Win when the trailing car has fully crossed; lose if any car falls.
+    let last_x = train.cars.last().map(|c| c.pos.x).unwrap_or(f32::MIN);
+    let lowest_y = train.cars.iter().map(|c| c.pos.y).fold(f32::INFINITY, f32::min);
+    if last_x >= state.goal_x {
+        state.result = TestResult::Won;
+    } else if lowest_y < FALL_THRESHOLD {
+        state.result = TestResult::Lost;
+    }
+}
+
+/// Push a car out of any terrain segment it has descended below.
+///
+/// The terrain polyline runs left-to-right with dirt below it, so the
+/// "air-side" normal for each segment is 90° CCW from the segment direction.
+/// A segment only acts on cars whose perpendicular projection falls inside
+/// its `t ∈ [0, 1]` range — corner handling falls to the neighbouring segment.
+/// Among all penetrating segments we return the largest push to keep things
+/// simple and well-behaved at concave joints.
+fn resolve_circle_vs_terrain(p: Vec2, r: f32, terrain: &[Vec2]) -> Option<Vec2> {
+    let mut best: Option<(Vec2, f32)> = None;
+    for pair in terrain.windows(2) {
+        let a = pair[0];
+        let b = pair[1];
+        let ab = b - a;
+        let len_sq = ab.length_squared();
+        if len_sq < 1e-6 {
+            continue;
+        }
+        let len = len_sq.sqrt();
+        let t = (p - a).dot(ab) / len_sq;
+        if !(0.0..=1.0).contains(&t) {
+            continue;
+        }
+        let n = Vec2::new(-ab.y, ab.x) / len;
+        let closest = a + ab * t;
+        let signed = (p - closest).dot(n);
+        if signed < r {
+            let push = n * (r - signed);
+            let mag = push.length();
+            if best.is_none_or(|(_, m)| mag > m) {
+                best = Some((push, mag));
+            }
+        }
+    }
+    best.map(|(push, _)| push)
 }
 
 /// If the circle penetrates the segment, return the minimum push-out vector.

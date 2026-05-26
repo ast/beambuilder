@@ -1,4 +1,5 @@
 use crate::GameState;
+use crate::camera::RmbDrag;
 use crate::edit::history::{History, Op};
 use crate::edit::snap::world_cursor;
 use crate::sim::graph::{Beam, BeamId, NodeKind, TrussGraph};
@@ -20,12 +21,14 @@ impl Plugin for DeletePlugin {
 
 fn delete_under_cursor(
     buttons: Res<ButtonInput<MouseButton>>,
+    drag: Res<RmbDrag>,
     windows: Query<&Window>,
     cameras: Query<(&Camera, &GlobalTransform)>,
     mut graph: ResMut<TrussGraph>,
     mut history: ResMut<History>,
 ) {
-    if !buttons.just_pressed(MouseButton::Right) {
+    // Delete only on release-without-drag — right-drag is reserved for camera pan.
+    if !buttons.just_released(MouseButton::Right) || drag.is_drag() {
         return;
     }
     let Some(world) = world_cursor(&windows, &cameras) else {

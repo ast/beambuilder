@@ -7,11 +7,28 @@ use bevy::prelude::*;
 
 const BEAM_OK_COLOR: Color = Color::srgb(0.45, 1.0, 0.45);
 const FREE_NODE_COLOR: Color = Color::srgb(0.85, 1.0, 0.85);
-const VEHICLE_COLOR: Color = Color::srgb(1.0, 0.85, 0.35);
+const ENGINE_COLOR: Color = Color::srgb(1.0, 0.55, 0.35);
+const WAGON_COLOR: Color = Color::srgb(1.0, 0.85, 0.35);
+const WHEEL_COLOR: Color = Color::srgb(0.85, 0.85, 0.85);
+const COUPLER_COLOR: Color = Color::srgb(0.85, 0.6, 0.25);
 
 const NODE_OUTER_R: f32 = 4.0;
 const NODE_INNER_R: f32 = 1.5;
-const VEHICLE_INNER_R: f32 = 5.0;
+
+// Train car geometry (all measured from the car's simulation center).
+// The collision circle (CAR_RADIUS = 20) extends 20 units below the center,
+// which is exactly where the wheel bottoms sit, so the car rests cleanly on
+// the deck without visual penetration.
+const BODY_HALF_W: f32 = 22.0;
+const BODY_HALF_H: f32 = 10.0;
+const BODY_OFFSET_Y: f32 = 4.0;
+const WHEEL_R: f32 = 6.0;
+const WHEEL_OFFSET_X: f32 = 14.0;
+const WHEEL_OFFSET_Y: f32 = -14.0;
+const STACK_HALF_W: f32 = 4.0;
+const STACK_HALF_H: f32 = 8.0;
+const STACK_OFFSET_X: f32 = -12.0;
+const STACK_OFFSET_Y: f32 = BODY_OFFSET_Y + BODY_HALF_H + STACK_HALF_H;
 
 pub struct SimRenderPlugin;
 
@@ -79,10 +96,43 @@ fn draw_dynamic(mut gizmos: Gizmos, state: Res<DynamicState>) {
         );
     }
 
-    if let Some(v) = state.vehicle {
-        let iso = Isometry2d::from_translation(v.pos);
-        gizmos.circle_2d(iso, v.radius, VEHICLE_COLOR);
-        gizmos.circle_2d(iso, VEHICLE_INNER_R, VEHICLE_COLOR);
+    if let Some(train) = &state.train {
+        // Couplers between adjacent cars (at body level, not car center).
+        for pair in train.cars.windows(2) {
+            let p0 = pair[0].pos + Vec2::new(0.0, BODY_OFFSET_Y);
+            let p1 = pair[1].pos + Vec2::new(0.0, BODY_OFFSET_Y);
+            gizmos.line_2d(p0, p1, COUPLER_COLOR);
+        }
+        for (i, car) in train.cars.iter().enumerate() {
+            let is_engine = i == 0;
+            draw_train_car(&mut gizmos, car.pos, is_engine);
+        }
+    }
+}
+
+fn draw_train_car(gizmos: &mut Gizmos, pos: Vec2, is_engine: bool) {
+    let body_color = if is_engine { ENGINE_COLOR } else { WAGON_COLOR };
+
+    // Body.
+    gizmos.rect_2d(
+        Isometry2d::from_translation(pos + Vec2::new(0.0, BODY_OFFSET_Y)),
+        Vec2::new(BODY_HALF_W * 2.0, BODY_HALF_H * 2.0),
+        body_color,
+    );
+
+    // Wheels.
+    for wx in [-WHEEL_OFFSET_X, WHEEL_OFFSET_X] {
+        let iso = Isometry2d::from_translation(pos + Vec2::new(wx, WHEEL_OFFSET_Y));
+        gizmos.circle_2d(iso, WHEEL_R, WHEEL_COLOR);
+    }
+
+    // Engine extras: smokestack.
+    if is_engine {
+        gizmos.rect_2d(
+            Isometry2d::from_translation(pos + Vec2::new(STACK_OFFSET_X, STACK_OFFSET_Y)),
+            Vec2::new(STACK_HALF_W * 2.0, STACK_HALF_H * 2.0),
+            body_color,
+        );
     }
 }
 
