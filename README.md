@@ -1,5 +1,7 @@
 # Beambuilder
 
+![A small Warren truss spanning a chasm, beams colored by stress.](docs/screenshot.png)
+
 A 2D bridge construction game in the spirit of the original *Pontifex / Bridge
 Builder*: wireframe trusses on a dark background, color-coded stress, watch your
 bridge break under a passing train. Built in Rust with the Bevy game engine.
