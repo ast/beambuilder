@@ -82,7 +82,7 @@ fn update_status_label(
             StructureStatus::Unstable => ("UNSTABLE", COLOR_RED),
         },
         GameState::Test => match dynamic.result {
-            TestResult::Running => ("TESTING…  [ESC]", COLOR_YELLOW),
+            TestResult::Running => ("TESTING  [ESC]", COLOR_YELLOW),
             TestResult::Won => ("WON!  [ESC]", COLOR_GREEN),
             TestResult::Lost => ("FAILED  [ESC]", COLOR_RED),
         },

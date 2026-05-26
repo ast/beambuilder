@@ -1,0 +1,24 @@
+// Island: a wider chasm with a stone island poking up in the middle. Three
+// anchors (left bank, island top, right bank) split the crossing into two
+// spans, so the player can build two shorter trusses instead of one long one.
+(
+    anchors: [
+        (-512.0,    0.0),
+        (   0.0,    0.0),
+        ( 512.0,    0.0),
+    ],
+    terrain: [
+        (-896.0,    0.0),
+        (-512.0,    0.0),
+        (-384.0, -288.0),
+        (-160.0, -288.0),
+        ( -96.0,    0.0),
+        (  96.0,    0.0),
+        ( 160.0, -288.0),
+        ( 384.0, -288.0),
+        ( 512.0,    0.0),
+        ( 896.0,    0.0),
+    ],
+    vehicle_spawn: (-768.0,  32.0),
+    goal:          ( 768.0,   0.0),
+)
