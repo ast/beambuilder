@@ -1,5 +1,6 @@
 use crate::sim::graph::{Beam, BeamId, Node, NodeId, NodeKind, TrussGraph};
 use bevy::prelude::*;
+use std::collections::VecDeque;
 
 const MAX_HISTORY: usize = 100;
 
@@ -19,19 +20,24 @@ pub enum Op {
         /// Free nodes that became orphaned and were also removed.
         removed_nodes: Vec<(NodeId, Node)>,
     },
+    /// Wipe every beam and every Free node in one shot. Anchors stay put.
+    ClearAll {
+        beams: Vec<(BeamId, Beam)>,
+        removed_nodes: Vec<(NodeId, Node)>,
+    },
 }
 
 #[derive(Resource, Default)]
 pub struct History {
-    undo_stack: Vec<Op>,
-    redo_stack: Vec<Op>,
+    undo_stack: VecDeque<Op>,
+    redo_stack: VecDeque<Op>,
 }
 
 impl History {
     pub fn push(&mut self, op: Op) {
-        self.undo_stack.push(op);
+        self.undo_stack.push_back(op);
         if self.undo_stack.len() > MAX_HISTORY {
-            self.undo_stack.remove(0);
+            self.undo_stack.pop_front();
         }
         self.redo_stack.clear();
     }
@@ -44,7 +50,8 @@ impl Plugin for HistoryPlugin {
         app.init_resource::<History>()
             .add_systems(
                 Update,
-                undo_redo_input.run_if(in_state(crate::GameState::Edit)),
+                (undo_redo_input, clear_all_input)
+                    .run_if(in_state(crate::GameState::Edit)),
             );
     }
 }
@@ -62,16 +69,16 @@ fn undo_redo_input(
 
     if keys.just_pressed(KeyCode::KeyZ)
         && !shift
-        && let Some(op) = history.undo_stack.pop()
+        && let Some(op) = history.undo_stack.pop_back()
     {
         apply_inverse(&op, &mut graph);
-        history.redo_stack.push(op);
+        history.redo_stack.push_back(op);
     } else if (keys.just_pressed(KeyCode::KeyY)
         || (keys.just_pressed(KeyCode::KeyZ) && shift))
-        && let Some(op) = history.redo_stack.pop()
+        && let Some(op) = history.redo_stack.pop_back()
     {
         apply_forward(&op, &mut graph);
-        history.undo_stack.push(op);
+        history.undo_stack.push_back(op);
     }
 }
 
@@ -88,6 +95,14 @@ fn apply_inverse(op: &Op, graph: &mut TrussGraph) {
                 graph.nodes.insert(*id, *node);
             }
             graph.beams.insert(*beam_id, *beam);
+        }
+        Op::ClearAll { beams, removed_nodes } => {
+            for (id, node) in removed_nodes {
+                graph.nodes.insert(*id, *node);
+            }
+            for (id, beam) in beams {
+                graph.beams.insert(*id, *beam);
+            }
         }
     }
 }
@@ -106,11 +121,38 @@ fn apply_forward(op: &Op, graph: &mut TrussGraph) {
                 graph.nodes.remove(id);
             }
         }
+        Op::ClearAll { beams, removed_nodes } => {
+            for (id, _) in beams {
+                graph.beams.remove(id);
+            }
+            for (id, _) in removed_nodes {
+                graph.nodes.remove(id);
+            }
+        }
     }
 }
 
-/// Helper for restoring NodeKind invariance when redoing.
-#[allow(dead_code)]
-pub fn is_anchor(kind: NodeKind) -> bool {
-    matches!(kind, NodeKind::Anchor)
+fn clear_all_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut history: ResMut<History>,
+    mut graph: ResMut<TrussGraph>,
+) {
+    let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+    if !ctrl || !keys.just_pressed(KeyCode::KeyN) {
+        return;
+    }
+    if graph.beams.is_empty() {
+        return;
+    }
+    let beams: Vec<(BeamId, Beam)> = graph.beams.drain().collect();
+    let removed_nodes: Vec<(NodeId, Node)> = graph
+        .nodes
+        .iter()
+        .filter(|(_, n)| n.kind == NodeKind::Free)
+        .map(|(id, n)| (*id, *n))
+        .collect();
+    for (id, _) in &removed_nodes {
+        graph.nodes.remove(id);
+    }
+    history.push(Op::ClearAll { beams, removed_nodes });
 }

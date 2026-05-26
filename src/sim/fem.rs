@@ -49,6 +49,9 @@ fn recompute_static_fem(
     mut stresses: ResMut<Stresses>,
     mut status: ResMut<StructureStatus>,
 ) {
+    if !graph.is_changed() {
+        return;
+    }
     let (s, st) = solve(&graph);
     stresses.0 = s;
     *status = st;

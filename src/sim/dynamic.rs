@@ -12,7 +12,7 @@ use bevy::prelude::*;
 
 const SUBSTEPS: usize = 8;
 const DAMPING: f32 = 0.9995;
-const BREAK_STRAIN: f32 = 0.015;
+const BREAK_STRAIN: f32 = 0.020;
 const FALL_THRESHOLD: f32 = -500.0;
 
 /// Number of train cars (engine + wagons).
@@ -95,7 +95,8 @@ pub struct DynamicPlugin;
 impl Plugin for DynamicPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DynamicState>()
-            .add_systems(Update, toggle_test_state)
+            .add_systems(Update, start_test.run_if(in_state(GameState::Edit)))
+            .add_systems(Update, stop_test.run_if(in_state(GameState::Test)))
             .add_systems(OnEnter(GameState::Test), enter_test)
             .add_systems(OnExit(GameState::Test), exit_test)
             .add_systems(
@@ -105,19 +106,15 @@ impl Plugin for DynamicPlugin {
     }
 }
 
-fn toggle_test_state(
-    keys: Res<ButtonInput<KeyCode>>,
-    state: Res<State<GameState>>,
-    mut next: ResMut<NextState<GameState>>,
-) {
-    match state.get() {
-        GameState::Edit if keys.just_pressed(KeyCode::Space) => {
-            next.set(GameState::Test);
-        }
-        GameState::Test if keys.just_pressed(KeyCode::Escape) => {
-            next.set(GameState::Edit);
-        }
-        _ => {}
+fn start_test(keys: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GameState>>) {
+    if keys.just_pressed(KeyCode::Space) {
+        next.set(GameState::Test);
+    }
+}
+
+fn stop_test(keys: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GameState>>) {
+    if keys.just_pressed(KeyCode::Escape) {
+        next.set(GameState::Edit);
     }
 }
 
@@ -182,8 +179,10 @@ fn enter_test(
             let head = lvl.vehicle_spawn_vec2();
             let goal = lvl.goal_vec2();
             // Index 0 = engine at vehicle_spawn; remaining cars trail to the left.
-            // Bake initial rightward velocity into each prev_pos.
-            let v_offset = Vec2::new(INITIAL_VX / 60.0, 0.0);
+            // Verlet velocity is (pos - prev_pos) / dt where dt is the *substep*
+            // dt, not the frame dt — at 60 FPS that's (1/60) / SUBSTEPS.
+            let nominal_substep_dt = (1.0 / 60.0) / SUBSTEPS as f32;
+            let v_offset = Vec2::new(INITIAL_VX * nominal_substep_dt, 0.0);
             let cars: Vec<Car> = (0..CAR_COUNT)
                 .map(|i| {
                     let pos = head - Vec2::new(CAR_SPACING * i as f32, 0.0);

@@ -14,8 +14,7 @@ pub struct Level {
     pub anchors: Vec<[f32; 2]>,
     /// Polyline describing the terrain silhouette, left → right.
     pub terrain: Vec<[f32; 2]>,
-    /// Where the test vehicle starts. Used in M5.
-    #[allow(dead_code)]
+    /// Where the test vehicle (engine car) starts.
     pub vehicle_spawn: [f32; 2],
     /// Goal position — vehicle reaches here to win.
     pub goal: [f32; 2],
@@ -30,7 +29,6 @@ impl Level {
         self.terrain.iter().map(|p| Vec2::new(p[0], p[1]))
     }
 
-    #[allow(dead_code)]
     pub fn vehicle_spawn_vec2(&self) -> Vec2 {
         Vec2::new(self.vehicle_spawn[0], self.vehicle_spawn[1])
     }
