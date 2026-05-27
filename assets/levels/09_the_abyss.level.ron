@@ -1,0 +1,23 @@
+// The Abyss: boss level. Maximum 1024-unit span over a 768-unit-deep gorge.
+// Two anchors per side, side by side along the flat ground 128 units (4 grid
+// cells) apart: the inner pair sit at the cliff edge for the deck, the outer
+// pair act as back-stay anchors so a suspension design is buildable alongside
+// the usual Pratt/Warren or full-arch options. Anything that falls is gone.
+(
+    anchors: [
+        (-640.0,    0.0),
+        (-512.0,    0.0),
+        ( 512.0,    0.0),
+        ( 640.0,    0.0),
+    ],
+    terrain: [
+        (-896.0,    0.0),
+        (-512.0,    0.0),
+        (-384.0, -768.0),
+        ( 384.0, -768.0),
+        ( 512.0,    0.0),
+        ( 896.0,    0.0),
+    ],
+    vehicle_spawn: (-768.0,  32.0),
+    goal:          ( 768.0,   0.0),
+)

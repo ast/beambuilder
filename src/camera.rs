@@ -32,10 +32,7 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RmbDrag>()
             .add_systems(Startup, spawn_camera)
-            .add_systems(
-                Update,
-                (track_rmb_drag, pan_camera, zoom_camera).chain(),
-            );
+            .add_systems(Update, (track_rmb_drag, pan_camera, zoom_camera).chain());
     }
 }
 

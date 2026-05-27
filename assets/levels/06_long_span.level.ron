@@ -1,0 +1,19 @@
+// Long Span: a step beyond Wide Gap. 832 units (26 grid cells) between anchors
+// at the same height — the player needs an extra bay or two over what worked
+// in 02_wide_gap and has to keep the deck stiff enough not to sag mid-span.
+(
+    anchors: [
+        (-416.0,    0.0),
+        ( 416.0,    0.0),
+    ],
+    terrain: [
+        (-800.0,    0.0),
+        (-416.0,    0.0),
+        (-288.0, -288.0),
+        ( 288.0, -288.0),
+        ( 416.0,    0.0),
+        ( 800.0,    0.0),
+    ],
+    vehicle_spawn: (-672.0,  32.0),
+    goal:          ( 672.0,   0.0),
+)

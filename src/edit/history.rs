@@ -47,12 +47,10 @@ pub struct HistoryPlugin;
 
 impl Plugin for HistoryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<History>()
-            .add_systems(
-                Update,
-                (undo_redo_input, clear_all_input)
-                    .run_if(in_state(crate::GameState::Edit)),
-            );
+        app.init_resource::<History>().add_systems(
+            Update,
+            (undo_redo_input, clear_all_input).run_if(in_state(crate::GameState::Edit)),
+        );
     }
 }
 
@@ -73,8 +71,7 @@ fn undo_redo_input(
     {
         apply_inverse(&op, &mut graph);
         history.redo_stack.push_back(op);
-    } else if (keys.just_pressed(KeyCode::KeyY)
-        || (keys.just_pressed(KeyCode::KeyZ) && shift))
+    } else if (keys.just_pressed(KeyCode::KeyY) || (keys.just_pressed(KeyCode::KeyZ) && shift))
         && let Some(op) = history.redo_stack.pop_back()
     {
         apply_forward(&op, &mut graph);
@@ -84,19 +81,30 @@ fn undo_redo_input(
 
 fn apply_inverse(op: &Op, graph: &mut TrussGraph) {
     match op {
-        Op::AddBeam { beam_id, created_nodes, .. } => {
+        Op::AddBeam {
+            beam_id,
+            created_nodes,
+            ..
+        } => {
             graph.beams.remove(beam_id);
             for (id, _) in created_nodes {
                 graph.nodes.remove(id);
             }
         }
-        Op::DeleteBeam { beam_id, beam, removed_nodes } => {
+        Op::DeleteBeam {
+            beam_id,
+            beam,
+            removed_nodes,
+        } => {
             for (id, node) in removed_nodes {
                 graph.nodes.insert(*id, *node);
             }
             graph.beams.insert(*beam_id, *beam);
         }
-        Op::ClearAll { beams, removed_nodes } => {
+        Op::ClearAll {
+            beams,
+            removed_nodes,
+        } => {
             for (id, node) in removed_nodes {
                 graph.nodes.insert(*id, *node);
             }
@@ -109,19 +117,30 @@ fn apply_inverse(op: &Op, graph: &mut TrussGraph) {
 
 fn apply_forward(op: &Op, graph: &mut TrussGraph) {
     match op {
-        Op::AddBeam { beam_id, beam, created_nodes } => {
+        Op::AddBeam {
+            beam_id,
+            beam,
+            created_nodes,
+        } => {
             for (id, node) in created_nodes {
                 graph.nodes.insert(*id, *node);
             }
             graph.beams.insert(*beam_id, *beam);
         }
-        Op::DeleteBeam { beam_id, removed_nodes, .. } => {
+        Op::DeleteBeam {
+            beam_id,
+            removed_nodes,
+            ..
+        } => {
             graph.beams.remove(beam_id);
             for (id, _) in removed_nodes {
                 graph.nodes.remove(id);
             }
         }
-        Op::ClearAll { beams, removed_nodes } => {
+        Op::ClearAll {
+            beams,
+            removed_nodes,
+        } => {
             for (id, _) in beams {
                 graph.beams.remove(id);
             }
@@ -154,5 +173,8 @@ fn clear_all_input(
     for (id, _) in &removed_nodes {
         graph.nodes.remove(id);
     }
-    history.push(Op::ClearAll { beams, removed_nodes });
+    history.push(Op::ClearAll {
+        beams,
+        removed_nodes,
+    });
 }

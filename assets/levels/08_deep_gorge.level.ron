@@ -1,0 +1,20 @@
+// Deep Gorge: same 832-unit span as Long Span, but the chasm floor sits at
+// -608 instead of -288. Plenty of vertical room below the deck for the player
+// to build downward — an arched / tied-arch design becomes a real option,
+// not just a top-heavy Pratt truss.
+(
+    anchors: [
+        (-416.0,    0.0),
+        ( 416.0,    0.0),
+    ],
+    terrain: [
+        (-800.0,    0.0),
+        (-416.0,    0.0),
+        (-288.0, -608.0),
+        ( 288.0, -608.0),
+        ( 416.0,    0.0),
+        ( 800.0,    0.0),
+    ],
+    vehicle_spawn: (-672.0,  32.0),
+    goal:          ( 672.0,   0.0),
+)

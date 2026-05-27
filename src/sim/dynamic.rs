@@ -12,7 +12,7 @@ use bevy::prelude::*;
 
 const SUBSTEPS: usize = 8;
 const DAMPING: f32 = 0.9995;
-const BREAK_STRAIN: f32 = 0.020;
+const BREAK_STRAIN: f32 = 0.028;
 const FALL_THRESHOLD: f32 = -500.0;
 
 /// Number of train cars (engine + wagons).
@@ -99,10 +99,7 @@ impl Plugin for DynamicPlugin {
             .add_systems(Update, stop_test.run_if(in_state(GameState::Test)))
             .add_systems(OnEnter(GameState::Test), enter_test)
             .add_systems(OnExit(GameState::Test), exit_test)
-            .add_systems(
-                Update,
-                step_dynamics.run_if(in_state(GameState::Test)),
-            );
+            .add_systems(Update, step_dynamics.run_if(in_state(GameState::Test)));
     }
 }
 
@@ -359,7 +356,11 @@ fn substep(state: &mut DynamicState, dt: f32) {
 
     // Win when the trailing car has fully crossed; lose if any car falls.
     let last_x = train.cars.last().map(|c| c.pos.x).unwrap_or(f32::MIN);
-    let lowest_y = train.cars.iter().map(|c| c.pos.y).fold(f32::INFINITY, f32::min);
+    let lowest_y = train
+        .cars
+        .iter()
+        .map(|c| c.pos.y)
+        .fold(f32::INFINITY, f32::min);
     if last_x >= state.goal_x {
         state.result = TestResult::Won;
     } else if lowest_y < FALL_THRESHOLD {

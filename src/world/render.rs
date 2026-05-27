@@ -30,11 +30,7 @@ impl Plugin for WorldRenderPlugin {
     }
 }
 
-fn draw_level(
-    mut gizmos: Gizmos,
-    current: Option<Res<CurrentLevel>>,
-    levels: Res<Assets<Level>>,
-) {
+fn draw_level(mut gizmos: Gizmos, current: Option<Res<CurrentLevel>>, levels: Res<Assets<Level>>) {
     let Some(handle) = current.as_ref().map(|c| &c.0) else {
         return;
     };
@@ -99,7 +95,10 @@ fn spawn_ground_mesh(
         indices.extend_from_slice(&[top_l, bot_l, top_r, top_r, bot_l, bot_r]);
     }
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
     mesh.insert_indices(Indices::U32(indices));
 

@@ -1,0 +1,20 @@
+// Great Crossing: the widest flat single span — 1024 units (32 grid cells)
+// between anchors. With MAX_BEAM_LENGTH at 192 the span needs at least six
+// deck bays plus a deep top chord and full diagonal bracing to survive the
+// rolling load without sagging into failure.
+(
+    anchors: [
+        (-512.0,    0.0),
+        ( 512.0,    0.0),
+    ],
+    terrain: [
+        (-896.0,    0.0),
+        (-512.0,    0.0),
+        (-384.0, -320.0),
+        ( 384.0, -320.0),
+        ( 512.0,    0.0),
+        ( 896.0,    0.0),
+    ],
+    vehicle_spawn: (-768.0,  32.0),
+    goal:          ( 768.0,   0.0),
+)

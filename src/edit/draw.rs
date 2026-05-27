@@ -96,7 +96,13 @@ fn commit_drag(
         SnapResult::Existing(id, _) => id,
         SnapResult::Grid(p) => {
             let id = graph.add_node(p, NodeKind::Free);
-            created_nodes.push((id, Node { pos: p, kind: NodeKind::Free }));
+            created_nodes.push((
+                id,
+                Node {
+                    pos: p,
+                    kind: NodeKind::Free,
+                },
+            ));
             id
         }
     };
@@ -104,7 +110,13 @@ fn commit_drag(
         SnapResult::Existing(id, _) => id,
         SnapResult::Grid(p) => {
             let id = graph.add_node(p, NodeKind::Free);
-            created_nodes.push((id, Node { pos: p, kind: NodeKind::Free }));
+            created_nodes.push((
+                id,
+                Node {
+                    pos: p,
+                    kind: NodeKind::Free,
+                },
+            ));
             id
         }
     };
